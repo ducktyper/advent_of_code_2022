@@ -24,15 +24,21 @@ pub fn contained_pair(input: &str) -> i32 {
     result
 }
 
-fn parse(input: &str) -> Vec<Vec<Vec<i32>>> {
+fn parse(input: &str) -> Vec<[[i32; 2]; 2]> {
     input.lines().map(|line| parse_line(line)).collect()
 }
 
-fn parse_line(input: &str) -> Vec<Vec<i32>> {
-    input
-        .split(',')
-        .map(|x| x.split('-').map(|x| x.parse().unwrap()).collect())
-        .collect()
+fn parse_line(input: &str) -> [[i32; 2]; 2] {
+    to_array(
+        input
+            .split(',')
+            .map(|x| to_array(x.split('-').map(|x| x.parse().unwrap()).collect()))
+            .collect(),
+    )
+}
+
+fn to_array<T: Copy>(array: Vec<T>) -> [T; 2] {
+    [array[0], array[1]]
 }
 
 #[cfg(test)]
