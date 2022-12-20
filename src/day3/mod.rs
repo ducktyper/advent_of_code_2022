@@ -1,50 +1,84 @@
+use std::str::Lines;
+
 #[allow(dead_code)]
-pub fn total_priority(input: &str) -> i32 {
+pub fn total_priority<'a>(rucksacks: impl Iterator<Item = Vec<&'a str>>) -> i32 {
     let mut result = 0;
-    for line in input.lines() {
-        let (mut pmap_a, mut pmap_b) = ([false; 52], [false; 52]);
-        for i in 0..line.len() / 2 {
-            let char = line.chars().nth(i).unwrap();
-            pmap_a[priority_index(char)] = true;
-        }
-        for i in line.len() / 2..line.len() {
-            let char = line.chars().nth(i).unwrap();
-            if pmap_a[priority_index(char)] == true && pmap_b[priority_index(char)] == false {
-                result += priority_index(char) as i32 + 1
-            }
-            pmap_b[priority_index(char)] = true;
-        }
+    for compartments in rucksacks {
+        result += rucksack_score(compartments);
     }
     result
 }
 
-#[allow(dead_code)]
-pub fn total_priority_2(input: &str) -> i32 {
+fn rucksack_score(compartments: Vec<&str>) -> i32 {
     let mut result = 0;
-    let mut line_group = Vec::new();
-    for line in input.lines() {
-        line_group.push(line);
-        if line_group.len() == 3 {
-            let (mut pmap_a, mut pmap_b, mut pmap_c) = ([false; 52], [false; 52], [false; 52]);
-            for char in line_group[0].chars() {
-                pmap_a[priority_index(char)] = true;
+    let mut priority_map = [0; 52];
+    let mut binary_mark = 1; // 0b1 -> 0b10 -> 0b100
+    let last_compartment = compartments[compartments.len() - 1];
+    for compartment in compartments {
+        for char in compartment.chars() {
+            if compartment == last_compartment
+                && priority_map[priority_index(char)] == binary_mark - 1
+            {
+                result += priority_index(char) as i32 + 1;
             }
-            for char in line_group[1].chars() {
-                pmap_b[priority_index(char)] = true;
-            }
-            for char in line_group[2].chars() {
-                if pmap_a[priority_index(char)] == true
-                    && pmap_b[priority_index(char)] == true
-                    && pmap_c[priority_index(char)] == false
-                {
-                    result += priority_index(char) as i32 + 1
-                }
-                pmap_c[priority_index(char)] = true;
-            }
-            line_group.clear();
+            priority_map[priority_index(char)] |= binary_mark;
         }
+        binary_mark *= 2;
     }
     result
+}
+
+struct EachTwo<'a> {
+    lines: Lines<'a>,
+}
+
+impl<'a> EachTwo<'a> {
+    fn new(input: &'a str) -> Self {
+        EachTwo {
+            lines: input.lines(),
+        }
+    }
+}
+
+impl<'a> Iterator for EachTwo<'a> {
+    type Item = Vec<&'a str>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let line = self.lines.next();
+        if line == None {
+            return None;
+        }
+        let line = line.unwrap();
+        let (compartment_1, compartment_2) = line.split_at(line.len() / 2);
+        Option::Some(vec![compartment_1, compartment_2])
+    }
+}
+
+struct EachThree<'a> {
+    lines: Lines<'a>,
+}
+
+impl<'a> EachThree<'a> {
+    fn new(input: &'a str) -> Self {
+        EachThree {
+            lines: input.lines(),
+        }
+    }
+}
+
+impl<'a> Iterator for EachThree<'a> {
+    type Item = Vec<&'a str>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let compartment_1 = self.lines.next();
+        if compartment_1 == None {
+            return None;
+        }
+        let compartment_1 = compartment_1.unwrap();
+        let compartment_2 = self.lines.next().unwrap();
+        let compartment_3 = self.lines.next().unwrap();
+        Option::Some(vec![compartment_1, compartment_2, compartment_3])
+    }
 }
 
 fn priority_index(c: char) -> usize {
@@ -59,7 +93,8 @@ fn priority_index(c: char) -> usize {
 #[cfg(test)]
 mod tests {
     use super::total_priority;
-    use super::total_priority_2;
+    use super::EachThree;
+    use super::EachTwo;
     use std::fs;
 
     #[test]
@@ -70,7 +105,7 @@ mod tests {
             wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn\n\
             ttgJtRGJQctTZtZT\n\
             CrZsJsPPZsGzwwsLwLmpwMDw";
-        assert_eq!(total_priority(&input), 157);
+        assert_eq!(total_priority(EachTwo::new(&input)), 157);
     }
 
     #[test]
@@ -81,20 +116,20 @@ mod tests {
         wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn\n\
         ttgJtRGJQctTZtZT\n\
         CrZsJsPPZsGzwwsLwLmpwMDw";
-        assert_eq!(total_priority_2(&input), 70);
+        assert_eq!(total_priority(EachThree::new(&input)), 70);
     }
 
     #[test]
     fn part1() {
         let input = fs::read_to_string("src//day3/input.txt")
             .expect("Should have been able to read the file");
-        assert_eq!(total_priority(&input), 7795);
+        assert_eq!(total_priority(EachTwo::new(&input)), 7795);
     }
 
     #[test]
     fn part2() {
         let input = fs::read_to_string("src//day3/input.txt")
             .expect("Should have been able to read the file");
-        assert_eq!(total_priority_2(&input), 2703);
+        assert_eq!(total_priority(EachThree::new(&input)), 2703);
     }
 }
